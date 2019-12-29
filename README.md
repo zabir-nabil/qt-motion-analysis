@@ -23,23 +23,23 @@ Here, `i` is the webcam index.
 
 ### Logs
 
-Processed frames are saved in logs folder.
+Processed frames are saved in logs folder. The groundtruth data should be saved at groundtruth folder from logs folder (.npy files). Similarity between two poses can be estimated with error (l1 distance for coordinates).
 
 ### Demo
 
-#### Window 1
+#### Window 1 (after running main.py)
 
 <p align="center">
   <img src="gui_1.png"/>
 </p>
 
-#### Window 2
+#### Window 2 (after clicking start webcam)
  
 <p align="center">
   <img src="gui_2.png"/>
 </p>
 
-#### Window 3
+#### Window 3 (after processing frame)
 
 <p align="center">
   <img src="gui_3.png"/>
