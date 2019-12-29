@@ -27,24 +27,20 @@ Processed frames are saved in logs folder.
 
 ### Demo
 
-#### Window 1 (after running python main.py)
+#### Window 1
 
 <p align="center">
   <img src="gui_1.png"/>
 </p>
 
-#### Window 2 (after clicking Start Webcam button)
+#### Window 2
  
 <p align="center">
   <img src="gui_2.png"/>
 </p>
 
-#### Window 3 (after clicking Process Frame button)
+#### Window 3
 
 <p align="center">
   <img src="gui_3.png"/>
 </p>
-
-### Pose estimator backend
-
-`https://github.com/zabir-nabil/keras-human-pose`

@@ -29,7 +29,7 @@ from PoseEstimationProcessing import *
 import matplotlib
 import pylab as plt
 import numpy as np
-
+from math import fabs
 # global scope
 cur_id = 0
 shared_locs = None
@@ -49,25 +49,55 @@ def plot_skeleton(canvas, subject_wise_loc):
 
     #canvas = cv2.imread(test_image)
     stickwidth = 4
+    cur_canvas = canvas.copy()
 
+    for sub in range(subject_wise_loc.shape[1]):
+        maxX = 0
+        maxY = 0
+        minX = 999
+        minY = 999
+        cv2.circle(canvas, (int(20),int(20)), 4, (255,0,0), 5)
+        cv2.circle(canvas, (int(40),int(40)), 4, (255,0,0), 5)
+        for bp in range(subject_wise_loc.shape[0]):
+            x = subject_wise_loc[bp][sub][0][0]
+            y = subject_wise_loc[bp][sub][1][0]
+            cv2.circle(canvas, (int(x),int(y)), 4, (255,0,0), 5)
+
+
+        #cv2.rectangle(cur_canvas, (minX, minY), (maxX, maxY), (255,0,0), 3)
+        #cur_canvas[:50,:50,:] = np.zeros((50,50,3))*255
+
+    maxX = 0
+    maxY = 0
+    minX = 999
+    minY = 999
     for i in range(len(subject_wise_loc)):
-
         for n in range(len(subject_wise_loc[i])):
+
             
-            cur_canvas = canvas.copy()
+            
             Y = subject_wise_loc[i][n][1]
             X = subject_wise_loc[i][n][0]
 
             mX = np.mean(X)
             mY = np.mean(Y)
 
+
             length = ((X[0] - X[1]) ** 2 + (Y[0] - Y[1]) ** 2) ** 0.5
             angle = math.degrees(math.atan2(X[0] - X[1], Y[0] - Y[1]))
             polygon = cv2.ellipse2Poly((int(mY),int(mX)), (int(length/2), stickwidth), int(angle), 0, 360, 1)
             cv2.circle(canvas, (int(mY),int(mX)), 10, colors[i], thickness=-1)
+            if (fabs(mX+1.0)>1e-8 and fabs(mY+1.0)>1e-8):
+                maxX = max(maxX,mX)
+                minX = min(minX,mX)
+                maxY = max(maxY,mY)
+                minY = min(minY,mY)
 
             cv2.fillConvexPoly(cur_canvas, polygon, colors[i])
             canvas = cv2.addWeighted(canvas, 0.4, cur_canvas, 0.6, 0)
+            #cv2.rectangle(canvas, (int(minX), int(minY)), (int(maxX), int(maxY)), color = (0,0,255), thickness= 4)
+            #canvas[:50,:50,:] = np.zeros((50,50,3))*255
+            
     return canvas
 
 class video (QtWidgets.QDialog, Ui_Form):
@@ -126,6 +156,26 @@ class video (QtWidgets.QDialog, Ui_Form):
             subject_wise_loc = np.array(subject_wise_loc)
             print(subject_wise_loc)
             out_frame = plot_skeleton(frame, subject_wise_loc)
+            for sub in range(subject_wise_loc.shape[1]):
+                maxX = 0
+                maxY = 0
+                minX = 999
+                minY = 999
+                #cv2.circle(out_frame, (int(50),int(50)), 4, (255,0,0), 5)
+                #cv2.circle(out_frame, (int(100),int(50)), 4, (255,0,0), 5)
+                for bp in range(subject_wise_loc.shape[0]):
+                    x = subject_wise_loc[bp][sub][0][0]
+                    y = subject_wise_loc[bp][sub][1][0]
+                    if (fabs(x+1.0)>1e-8 and fabs(y+1.0)>1e-8):
+                        cv2.circle(out_frame, (int(y),int(x)), 4, (255,0,0), 5)
+                        maxX = max(x, maxX)
+                        maxY = max(y, maxY)
+                        minX = min(x, minX)
+                        minY = min(y, minY)
+                cv2.rectangle(out_frame, (int(minY-50), int(minX-40)), (int(maxY+50), int(maxX+80)), color = (50,0,0), thickness = 1)
+            print('actual shape')
+            print(out_frame.shape)
+            
             out_name = "out" +  str(cur_id) +  ".jpg"
             global shared_locs
             shared_locs = subject_wise_loc # global sharing the points
@@ -194,11 +244,63 @@ class UIWindow(QWidget):
         for i in range(sub_body_coords.shape[1]):
             for j in range(sub_body_coords.shape[0]):
                 x_c = sub_body_coords[j,i][0][0]
-                print(x_c)
+                #print(x_c)
                 if x_c == -1.:
                     continue
-                log_str += body_map[j] + '  found for subject ' + str(i+1) + ' at ' + '(' + str(sub_body_coords[j,i][0]) +' , ' + str(sub_body_coords[j,i][1]) +  ') ; '
+                log_str += body_map[j] + '  found for subject ' + str(i+1) + ' at ' + '(' + str(sub_body_coords[j,i][0][0]) +' , ' + str(sub_body_coords[j,i][1][0]) +  ') ; '
             log_str += '\n'
+
+        # subject movement comparison
+
+        log_str += 'Comparison analysis with ground truth:\n'
+
+        # saving as a numpy array
+
+        import numpy as np
+
+        model_data  = np.zeros((sub_body_coords.shape[0],2), dtype='float32')
+
+        # loading ground truth data
+
+        import glob
+        import math
+        gt_found = False
+        for f in glob.glob('ground_truth/*.npy'):
+            gt_found = True
+            gt = np.load(f)
+        
+        if gt_found:
+            log_str += 'Ground truth: '
+            for i in range(gt.shape[0]):
+                x = gt[i,0]
+                y = gt[i,1]
+                log_str += f"({x}, {y}) ; "
+
+            log_str += '\n'
+        else:
+            log_str += 'No ground truth data found.\n'
+
+        log_str += 'Subject 1 info: '
+
+        error_tot = 0.0
+
+        for i in range(sub_body_coords.shape[0]):
+            j = 0 # always choose first subject
+            x_c = sub_body_coords[i, j][0][0]
+            y_c = sub_body_coords[i, j][1][0]
+            #print(x_c)
+            log_str += f"({x_c}, {y_c}) ; "
+            model_data[i,0] = x_c
+            model_data[i,1] = y_c
+            x_gt = gt[i,0]
+            y_gt = gt[i,1]
+
+            error_tot += math.fabs(x_gt - x_c) + math.fabs(y_gt - y_c) 
+        log_str += '\n'
+
+        log_str += f'Total error (w.r.t. ground truth): {error_tot}\n'
+
+        np.save('logs/model_data_FID_' + str(cur_id) + '.npy', model_data)
 
         ### ###
         self.logbox.insertPlainText(log_str)
